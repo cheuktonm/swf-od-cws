@@ -1,0 +1,27 @@
+Arduino UNO R3 pin assignments
+
+A0  - Battery voltage measurement 
+A1 
+A2 
+A3  - Left button
+A4  - Right button
+A5  - OK button
+
+SCL - i2c bus clock    > to LIDAR, MPU
+SDA - i2c bus data     > to LIDAR, MPU
+
+13  - Tilt sensor
+12  - LCD RS
+11~ - LCD Enable
+10~ - Servo signal
+9~  - Ultrasonic Trigger
+8   - Ultrasonic Echo
+7   - Alarm LED
+6~  - Alarm buzzer
+5~  - LCD D4
+4   - LCD D5
+3~  - LCD D6
+2   - LCD D7
+1
+0
+

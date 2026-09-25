@@ -6,8 +6,8 @@
 #define ALERT_H
 
 // TODO: change to PIN_BZZ
-#define BUZZ_BZZ 1 // connect to transistor base through resistor
-#define BUZZ_LED 2 // connect to buzzer led
+#define BUZZ_BZZ 7 // connect to transistor base through resistor
+#define BUZZ_LED 6 // connect to buzzer led
 
 #define ALERT_NONE 	 0
 #define ALERT_URGENT 1

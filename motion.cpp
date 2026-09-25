@@ -16,10 +16,12 @@
 
 // public bars
 bool m_is_tilted;
+bool m_mtn_abnormal;
+bool m_tilt_neg;
 
 // private vars
 //MPU6050 mpu;
-bool tilt_enable, tilt_neg;
+bool tilt_enable;
 int tilt_thres, tilt_trig;
 int tilt; // array of 16 bits
 

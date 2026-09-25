@@ -5,7 +5,7 @@
 #ifndef MOTION_H
 #define MOTION_H
 
-#define PIN_TILT 1
+#define PIN_TILT 13
 
 int motion_setup();
 int motion_config(bool cfg_negtilt);
@@ -15,5 +15,7 @@ bool read_tilt(bool cycle = false);
 
 // public vars
 extern bool m_is_tilted;
+extern bool m_mtn_abnormal;
+extern bool m_tilt_neg;
 
 #endif
