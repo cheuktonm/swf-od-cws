@@ -21,5 +21,6 @@ extern int m_ld_cm;
 extern bool m_sv_enable;
 extern int m_sv_lefts;
 extern int m_sv_rights;
+extern int m_sv_steps;
 
 #endif

@@ -1,27 +1,27 @@
 Arduino UNO R3 pin assignments
 
-A0  - Battery voltage measurement 
-A1 
-A2 
-A3  - Left button
-A4  - Right button
-A5  - OK button
+A0  - 				- Battery voltage measurement 
+A1  - PIN_BTN_LEFT 	- Left button
+A2  - PIN_BTN_RIGHT - Right button
+A3  - PIN_BTN_OK 	- OK button
+A4  * 				* conflicts with SDA
+A5  * 				* conflicts with SCL
 
-SCL - i2c bus clock    > to LIDAR, MPU
-SDA - i2c bus data     > to LIDAR, MPU
+SCL - i2c bus clock > to LIDAR, MPU
+SDA - i2c bus data  > to LIDAR, MPU
 
-13  - Tilt sensor
-12  - LCD RS
-11~ - LCD Enable
-10~ - Servo signal
-9~  - Ultrasonic Trigger
-8   - Ultrasonic Echo
-7   - Alarm LED
-6~  - Alarm buzzer
-5~  - LCD D4
-4   - LCD D5
-3~  - LCD D6
-2   - LCD D7
-1
-0
+13  - PIN_TILT 		- Tilt sensor
+12  - PIN_LCD_ES 	- LCD RS
+11~ - PIN_LCD_EN 	- LCD Enable
+10~ - PIN_SERVO 	~ Servo signal
+9~  - PIN_US_TRIG 	- Ultrasonic Trigger
+8   - PIN_US_ECHO 	- Ultrasonic Echo
+7   - PIN_BZZ_LED 	- Alarm LED
+6~  - PIN_BZZ_BZZ 	~ Alarm buzzer
+5~  - PIN_LCD_D4 	- LCD D4
+4   - PIN_LCD_D5 	- LCD D5
+3~  - PIN_LCD_D6 	- LCD D6
+2   - PIN_LCD_D7 	- LCD D7
+1   *               * conflicts with UART tx
+0   *               * conflicts with UART rx
 

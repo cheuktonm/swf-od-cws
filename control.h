@@ -12,9 +12,9 @@
 #define PIN_LCD_D6 3
 #define PIN_LCD_D7 2
 
-#define PIN_BTN_OK PIN_A5
-#define PIN_BTN_LEFT PIN_A3
-#define PIN_BTN_RIGHT PIN_A4
+#define PIN_BTN_OK PIN_A3
+#define PIN_BTN_LEFT PIN_A1
+#define PIN_BTN_RIGHT PIN_A2
 
 int control_setup();
 int control_config();
@@ -24,6 +24,9 @@ void control_errmsg(char* msg1, char* msg2, bool temp = false);
 
 // main.ino
 extern unsigned int m_battery;
+
+// public var
+extern int menu_state;
 
 #ifdef DEBUG
 int control_debug(char* cmd);

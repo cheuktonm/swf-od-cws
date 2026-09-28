@@ -38,8 +38,8 @@ unsigned long alert_cnt_bzz;
 
 // setup the alert module
 int alert_setup() {
-	pinMode(BUZZ_BZZ, OUTPUT);
-	pinMode(BUZZ_LED, OUTPUT);
+	pinMode(PIN_BZZ_BZZ, OUTPUT);
+	pinMode(PIN_BZZ_LED, OUTPUT);
 	alert_state = ALERT_NONE;
 	alert_led_state = false;
 	alert_bzz_state = false;
@@ -47,12 +47,13 @@ int alert_setup() {
 	alert_cnt = 0;
 	alert_cnt_led = 0;
 	alert_cnt_bzz = 0;
-	noTone(BUZZ_BZZ);
+	noTone(PIN_BZZ_BZZ);
 	return 0;
 }
 
 // begin an alert
 void alert_start(int severity, int timeout) {
+	if (severity < alert_state) return; // keep higher priority alert on
 	alert_cnt = millis(); // reset the counter
 	switch (severity) {
 		case ALERT_URGENT:
@@ -83,7 +84,7 @@ void alert_start(int severity, int timeout) {
 			// buzzer = high, low, pause
 			// led    = on
 			alert_state = ALERT_ERROR;
-			digitalWrite(BUZZ_LED, HIGH);
+			digitalWrite(PIN_BZZ_LED, HIGH);
 
 			break;
 			
@@ -99,9 +100,9 @@ void alert_start(int severity, int timeout) {
 // stop any alerts
 void alert_stop() {
 	alert_state = ALERT_NONE;
-	noTone(BUZZ_BZZ);
+	noTone(PIN_BZZ_BZZ);
 	alert_led_state = false;
-	digitalWrite(BUZZ_LED, LOW);
+	digitalWrite(PIN_BZZ_LED, LOW);
 	alert_bzz_state = false;
 	return;
 }
@@ -120,13 +121,13 @@ void alert_loop() {
 			if (now - alert_cnt_led > ALERT_INT_LED_URGENT) {
 				// update LED - urgent
 				alert_led_state = alert_led_state ? false : true;
-				digitalWrite(BUZZ_LED, alert_led_state);
+				digitalWrite(PIN_BZZ_LED, alert_led_state);
 				alert_cnt_led = now;
 			}
 			if (now - alert_cnt_bzz > ALERT_INT_BZZ_URGENT) {
 				// update buzzer - urgent
 				alert_bzz_state = alert_bzz_state ? false : true;
-				tone(BUZZ_BZZ, alert_bzz_state ? ALERT_BZZ_URG_A : ALERT_BZZ_URG_B);
+				tone(PIN_BZZ_BZZ, alert_bzz_state ? ALERT_BZZ_URG_A : ALERT_BZZ_URG_B);
 				alert_cnt_bzz = now;
 			} break;
 			
@@ -134,18 +135,18 @@ void alert_loop() {
 			if (now - alert_cnt_led > ALERT_INT_LED_WARN) {
 				// update LED - warning
 				alert_led_state = alert_led_state ? false : true;
-				digitalWrite(BUZZ_LED, alert_led_state);
+				digitalWrite(PIN_BZZ_LED, alert_led_state);
 				alert_cnt_led = now;
 			}
 			if (now - alert_cnt_bzz > ALERT_INT_BZZ_WARN) {
 				// update buzzer - warning
 				if (alert_bzz_state) { // triple bip
-					tone(BUZZ_BZZ, 1000); delay(1);
-					noTone(BUZZ_BZZ); delay(1);
-					tone(BUZZ_BZZ, 1000); delay(1);
-					noTone(BUZZ_BZZ); delay(1);
-					tone(BUZZ_BZZ, 1000); delay(1);
-					noTone(BUZZ_BZZ);
+					tone(PIN_BZZ_BZZ, 1000); delay(1);
+					noTone(PIN_BZZ_BZZ); delay(1);
+					tone(PIN_BZZ_BZZ, 1000); delay(1);
+					noTone(PIN_BZZ_BZZ); delay(1);
+					tone(PIN_BZZ_BZZ, 1000); delay(1);
+					noTone(PIN_BZZ_BZZ);
 				} alert_bzz_state = alert_bzz_state ? false : true;
 				alert_cnt_bzz = now;
 			} break;
@@ -155,10 +156,10 @@ void alert_loop() {
 			if (now - alert_cnt_bzz > ALERT_INT_BZZ_INFO) {
 				// update buzzer - warning
 				if (alert_bzz_state) { // double bip
-					tone(BUZZ_BZZ, 1000); delay(1);
-					noTone(BUZZ_BZZ); delay(1);
-					tone(BUZZ_BZZ, 1000); delay(1);
-					noTone(BUZZ_BZZ);
+					tone(PIN_BZZ_BZZ, 1000); delay(1);
+					noTone(PIN_BZZ_BZZ); delay(1);
+					tone(PIN_BZZ_BZZ, 1000); delay(1);
+					noTone(PIN_BZZ_BZZ);
 				} alert_bzz_state = alert_bzz_state ? false : true;
 				alert_cnt_bzz = now;
 			} break;
@@ -169,9 +170,9 @@ void alert_loop() {
 			if (now - alert_cnt_bzz > ALERT_INT_BZZ_ERROR) {
 				// update buzzer - error
 				switch (alert_bzz_state) {
-					case 0: tone(BUZZ_BZZ, ALERT_BZZ_ERR_A); break;
-					case 1: tone(BUZZ_BZZ, ALERT_BZZ_ERR_B); break;
-					case 2: noTone(BUZZ_BZZ); break;
+					case 0: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR_A); break;
+					case 1: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR_B); break;
+					case 2: noTone(PIN_BZZ_BZZ); break;
 					default: break;
 				} alert_bzz_state = (alert_bzz_state == 2) ? 0 : alert_bzz_state++;
 				alert_cnt_bzz = now;

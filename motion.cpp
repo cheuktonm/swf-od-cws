@@ -2,6 +2,7 @@
 // for ELEN30013 Semester 2, 2026
 // C. Mong 1606303 (cheukton.mong@student.unimelb.edu.au)
 
+// 260924 - fix tilt logic
 // 260915 - write the motion module
 
 #include <Arduino.h>
@@ -18,11 +19,12 @@
 bool m_is_tilted;
 bool m_mtn_abnormal;
 bool m_tilt_neg;
+char c_tilt_neg;
 
 // private vars
 //MPU6050 mpu;
 bool tilt_enable;
-int tilt_thres, tilt_trig;
+int tilt_thres, tilt_trig, tilt_cnt;
 int tilt; // array of 16 bits
 
 int motion_setup() {
@@ -34,10 +36,10 @@ int motion_setup() {
 	// setup tilt sensor
 	pinMode(PIN_TILT, INPUT);
 	
-	tilt_enable = false;
-	tilt_neg = false;
+	tilt_enable = true;
 	tilt_thres = 0;
 	tilt_trig = 0;
+	tilt_cnt = 0;
 	tilt = 0;
 	
 	m_is_tilted = false;
@@ -47,42 +49,61 @@ int motion_setup() {
 
 bool read_tilt(bool cycle) {
 	if (cycle) { // read a full 16 bits
-		for (int i = 0; i < sizeof(int); i++) {
-			tilt = tilt << digitalRead(PIN_TILT);
-			delay(1); // takes 32ms in total
+		for (int i = 0; i < 2*sizeof(int)*8; i++) {
+			tilt = (tilt<<1) + digitalRead(PIN_TILT);
+			delay(10); // takes 2*sizeof(int)*10 ms in total
 		} return __builtin_popcount(tilt) > THRES_TILT_BITS;
 	}
-	// reads tilt sensor, updates history, returns if threshold hit
-	tilt = tilt << digitalRead(PIN_TILT); // 16 readings of debounce 
+	// reads tilt sensor, updates history, returns if threshold reached
+	tilt = (tilt<<1) + (digitalRead(PIN_TILT) ^ m_tilt_neg); // XOR provides m_tilt_neg logic
 	return __builtin_popcount(tilt) > THRES_TILT_BITS;
 }
 
-int motion_config(char cfg_negtilt) {
+int motion_config() {
 	// TODO: abnormal movement detection thresholds
 	
 	// cfg_negtilt: A=Auto, H=horiz, V=vert
 	// if the setting for the tilt sensor is Auto
 	// then the current reading @ poweron becomes the OFF value
-	if (cfg_negtilt == 'A') tilt_neg = read_tilt(true);
-	else if (cfg_negtilt == 'H') tilt_neg = false;
-	else if (cfg_negtilt == 'V') tilt_neg = true;
+	switch (c_tilt_neg) {
+		default: c_tilt_neg = 'A';
+		case 'A': m_tilt_neg = read_tilt(true); break;
+		case 'H': m_tilt_neg = false; break;
+		case 'V': m_tilt_neg = true; break;
+	}
+
+	Serial.print("motion_config(): ");
+	Serial.print("tn="); Serial.print(c_tilt_neg); 
+	Serial.print("->"); Serial.println(m_tilt_neg ? 'O' : 'X');
 	
+	tilt = 0;
 	return 0;
 }
 
 void motion_loop() {
 	// tilt switch
-	if (tilt_enable && read_tilt()) {
-		if (tilt_trig && tilt_trig > tilt_thres) {
-			m_is_tilted = true;
-			alert_start(ALERT_URGENT, 0);
-			// tilt does not rearm until deasserted
-			tilt_enable = false; 
-			tilt_trig = 0; 
-		} else tilt_trig = millis();
-	} else { m_is_tilted = false; tilt_trig = 0; }
+	if (tilt_enable) {
+		int now = millis();
+		if (now - tilt_cnt > 1000) { // 1s*16bit = 16 seconds of history
+			tilt_cnt = now;
+			if (read_tilt()) {
+				m_is_tilted = true;
+				// alert_start(ALERT_URGENT, 0);
+				// tilt does not rearm until deasserted
+				tilt_enable = false; 
+			}
+		}
+	}
+
 	
 	// read accelerometer, determine abnormal state
 
+	return;
+}
+
+void motion_dismiss() {
+	tilt_enable = true; 
+	m_is_tilted = false; 
+	tilt = 0; tilt_cnt = 0;
 	return;
 }
