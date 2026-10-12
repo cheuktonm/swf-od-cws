@@ -20,6 +20,7 @@ bool m_is_tilted;
 bool m_mtn_abnormal;
 bool m_tilt_neg;
 char c_tilt_neg;
+int m_mtn_angle;
 
 // private vars
 //MPU6050 mpu;
@@ -43,6 +44,7 @@ int motion_setup() {
 	tilt = 0;
 	
 	m_is_tilted = false;
+	m_mtn_angle = 0;
 
 	return 0;
 }

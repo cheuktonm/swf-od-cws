@@ -233,8 +233,8 @@ int configuration() {
 			if (btn_ok) {
 				config_sel = 0; config_val = -1;
 				if (save_eeprom(64+3) == 0) { 
-					lcd.setCursor(0,1); lcd.print("       OK!  "); 
-				}
+					lcd.setCursor(0,1); lcd.print("       OK!"); 
+				} else { lcd.setCursor(0,1); lcd.print(" save error!"); }
 			} break;
 		case CFG_EXIT:
 			if (btn_ok) {

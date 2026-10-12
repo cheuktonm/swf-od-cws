@@ -2,16 +2,21 @@
 // for ELEN30013 Semester 2, 2026
 // C. Mong (cheukton.mong@student.unimelb.edu.au)
 
+// 261001 - implement angle-distance array
 // 260914 - write the distance module, ultrasonic, servo
 
 #include <Arduino.h>
 #include "distance.h"
+#include "motion.h"
 
 #include <Servo.h>
 
 // pin defines in distance.h
 
 #define ULTRASONIC_CONV 58
+
+#define US_THRES 1500
+#define LD_THRES 1500
 
 // public vars
 int m_us_cm;
@@ -24,6 +29,13 @@ int m_sv_steps;
 // private vars
 Servo servo;
 int sense_step, now_step;
+
+struct dist_t {
+	int m; // measurement
+	int a; // angle
+	int t; // time
+};
+dist_t us_a[180], ld_a[180]; // 180 slots
 
 int distance_setup() {
 	// assumed i2c is alr setup at this point
@@ -46,6 +58,8 @@ int distance_setup() {
 	
 	m_us_cm = 0; m_ld_cm = 0;
 	
+	memset(&us_a[0], 0x00, 180*sizeof(dist_t));
+	memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
 	
 	return 0; // all good
 }
@@ -54,6 +68,9 @@ int distance_config() {
 	if (!m_sv_enable) {
 		sense_step = 0;
 		now_step = 0;
+		// park the servo to the middle
+		int angle = (m_sv_rights-m_sv_lefts)/2;
+		servo.write(m_sv_lefts+angle);
 		return 0;
 	}
 
@@ -65,6 +82,26 @@ int distance_config() {
 }
 
 void distance_loop() {
+	// grab ultrasonic measurement
+	digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
+	delayMicroseconds(10);
+	digitalWrite(PIN_US_TRIG, LOW);
+	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
+	for (int i = 0; i < sense_step; i++) {
+		us_a[(sense_step*now_step)+i] = m_us_cm;
+	}	
+	
+	// grab lidar measurement
+	
+	// if the distance is below the threshold
+	// raise the alarm
+	for (int i = 0; i < 180; i++) {
+		if (us_a[i] < US_THRES)
+			alert_start(ALERT_URGENT, 10);
+		if (ld_a[i] < LD_THRES)
+			alert_start(ALERT_URGENT, 10);
+	}
+	
 	// rotate platform
 	if (m_sv_enable) {
 		// our range is 180 degrees, divided by sense_step
@@ -72,15 +109,6 @@ void distance_loop() {
 		now_step = (now_step == m_sv_steps) ? 0 : now_step + 1;
 		delay(5); // wait for the servo to get there
 	}
-
-	// grab ultrasonic measurement
-	digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
-	delayMicroseconds(10);
-	digitalWrite(PIN_US_TRIG, LOW);
-	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
-	
-	// grab lidar measurement
-	
 	
 	return;
 }
