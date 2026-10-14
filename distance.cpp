@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include "distance.h"
 #include "motion.h"
+#include "alert.h"
 
 #include <Servo.h>
 
@@ -32,10 +33,10 @@ int sense_step, now_step;
 
 struct dist_t {
 	int m; // measurement
-	int a; // angle
-	int t; // time
+	//int a; // angle
+	//int t; // time
 };
-dist_t us_a[180], ld_a[180]; // 180 slots
+dist_t us_a[180];//, ld_a[180]; // 180 slots
 
 int distance_setup() {
 	// assumed i2c is alr setup at this point
@@ -59,7 +60,7 @@ int distance_setup() {
 	m_us_cm = 0; m_ld_cm = 0;
 	
 	memset(&us_a[0], 0x00, 180*sizeof(dist_t));
-	memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
+	// memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
 	
 	return 0; // all good
 }
@@ -88,7 +89,7 @@ void distance_loop() {
 	digitalWrite(PIN_US_TRIG, LOW);
 	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
 	for (int i = 0; i < sense_step; i++) {
-		us_a[(sense_step*now_step)+i] = m_us_cm;
+		us_a[(sense_step*now_step)+i].m = m_us_cm;
 	}	
 	
 	// grab lidar measurement
@@ -96,10 +97,10 @@ void distance_loop() {
 	// if the distance is below the threshold
 	// raise the alarm
 	for (int i = 0; i < 180; i++) {
-		if (us_a[i] < US_THRES)
+		if (us_a[i].m < US_THRES)
 			alert_start(ALERT_URGENT, 10);
-		if (ld_a[i] < LD_THRES)
-			alert_start(ALERT_URGENT, 10);
+		//if (ld_a[i].m < LD_THRES)
+		//	alert_start(ALERT_URGENT, 10);
 	}
 	
 	// rotate platform
@@ -112,4 +113,3 @@ void distance_loop() {
 	
 	return;
 }
-
