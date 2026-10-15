@@ -18,7 +18,7 @@ extern int m_us_cm;
 extern int m_ld_cm;
 
 // loaded vars
-extern bool m_sv_enable;
+extern int m_sv_enable;
 extern int m_sv_lefts;
 extern int m_sv_rights;
 extern int m_sv_steps;

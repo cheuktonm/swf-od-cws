@@ -22,7 +22,7 @@
 // public vars
 int m_us_cm;
 int m_ld_cm;
-bool m_sv_enable;
+int m_sv_enable;
 int m_sv_lefts;
 int m_sv_rights;
 int m_sv_steps;
@@ -30,13 +30,14 @@ int m_sv_steps;
 // private vars
 Servo servo;
 int sense_step, now_step;
+int servo_timer;
 
 struct dist_t {
 	int m; // measurement
 	//int a; // angle
 	//int t; // time
 };
-dist_t us_a[180];//, ld_a[180]; // 180 slots
+// dist_t us_a[180];//, ld_a[180]; // 180 slots
 
 int distance_setup() {
 	// assumed i2c is alr setup at this point
@@ -47,10 +48,11 @@ int distance_setup() {
 	pinMode(PIN_US_ECHO, INPUT);
 	
 	// setup servo motor
-	servo.attach(PIN_SERVO);
+	servo.attach(PIN_SERVO, 500, 2500);
+	servo_timer = 0;
 	
 	// values to be configured from eeprom
-	m_sv_enable = false;
+	m_sv_enable = 0;
 	m_sv_lefts = 0;
 	m_sv_rights = 0;
 	// calculated values
@@ -59,7 +61,8 @@ int distance_setup() {
 	
 	m_us_cm = 0; m_ld_cm = 0;
 	
-	memset(&us_a[0], 0x00, 180*sizeof(dist_t));
+	// for (int i = 0; i < 180; i++) us_a[i].m = 0;
+	// memset(&us_a[0], 0x00, 180*sizeof(dist_t));
 	// memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
 	
 	return 0; // all good
@@ -73,11 +76,15 @@ int distance_config() {
 		int angle = (m_sv_rights-m_sv_lefts)/2;
 		servo.write(m_sv_lefts+angle);
 		return 0;
-	}
+	} else m_sv_enable = 1;
 
 	sense_step = (m_sv_rights-m_sv_lefts)/m_sv_steps;
-	if (sense_step < 27) sense_step = 27; // hard locked min to lidar fov
-	now_step = 0;
+	//if (sense_step < 27) {
+	//	sense_step = 27; // hard locked min to lidar fov
+	//	m_sv_steps = 180/sense_step;
+	//	sense_step = (m_sv_rights-m_sv_lefts)/m_sv_steps;
+	//}
+	now_step = 0; servo_timer = 0;
 	
 	return 0;
 }
@@ -88,27 +95,46 @@ void distance_loop() {
 	delayMicroseconds(10);
 	digitalWrite(PIN_US_TRIG, LOW);
 	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
-	for (int i = 0; i < sense_step; i++) {
-		us_a[(sense_step*now_step)+i].m = m_us_cm;
-	}	
+	//for (int i = 0; i < sense_step; i++) {
+	//	us_a[(sense_step*now_step)+i].m = m_us_cm;
+	//}	
+	
 	
 	// grab lidar measurement
 	
 	// if the distance is below the threshold
 	// raise the alarm
-	for (int i = 0; i < 180; i++) {
-		if (us_a[i].m < US_THRES)
-			alert_start(ALERT_URGENT, 10);
+	if (m_us_cm < US_THRES) alert_start(ALERT_URGENT, 10);
+	
+	
+	//for (int i = 0; i < 180; i++) {
+	//	if (us_a[i].m < US_THRES)
+	//		alert_start(ALERT_URGENT, 10);
 		//if (ld_a[i].m < LD_THRES)
 		//	alert_start(ALERT_URGENT, 10);
-	}
+	//}
 	
 	// rotate platform
+	int now = millis();
 	if (m_sv_enable) {
-		// our range is 180 degrees, divided by sense_step
-		servo.write(m_sv_lefts + (sense_step*now_step));
-		now_step = (now_step == m_sv_steps) ? 0 : now_step + 1;
-		delay(5); // wait for the servo to get there
+		if (now-servo_timer > 500) {
+			Serial.print(m_sv_lefts);Serial.print(' ');
+			Serial.print(sense_step);Serial.print(' ');
+			Serial.print(now_step);Serial.print(' ');
+			Serial.print(m_sv_enable);Serial.println(' ');
+			
+			servo_timer = now;
+			// our range is 180 degrees, divided by sense_step
+			servo.write(min(m_sv_lefts + (sense_step*now_step),180));
+			
+			if (m_sv_enable == 1) {
+				now_step++;
+				if (now_step >= m_sv_steps) m_sv_enable = 2;
+			} else if (m_sv_enable == 2) {
+				now_step--;
+				if (now_step <= 0) m_sv_enable = 1;
+			} delay(5); // wait for the servo to get there
+		} 
 	}
 	
 	return;

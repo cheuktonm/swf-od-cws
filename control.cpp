@@ -250,7 +250,7 @@ int configuration() {
 		
 		case CFG_SV_EN:
 			if (btn_ok) { 
-				m_sv_enable = m_sv_enable ? false : true;
+				m_sv_enable = m_sv_enable ? 0 : 1;
 				enter = true;
 			} break;
 		case CFG_SV_LS:
