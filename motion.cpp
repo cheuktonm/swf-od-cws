@@ -6,6 +6,7 @@
 // 260915 - write the motion module
 
 #include <Arduino.h>
+#include <Wire.h>
 #include "motion.h"
 #include "alert.h"
 
@@ -14,6 +15,8 @@
 // pin defines in motion.h
 
 #define THRES_TILT_BITS 12 // require x/16 bits set to trigger
+#define ACC_THRES 2 // in g
+#define GYRO_THRES 180 // in degrees/sec
 
 // public bars
 bool m_is_tilted;
@@ -24,6 +27,9 @@ int m_mtn_angle;
 
 // private vars
 //MPU6050 mpu;
+int MPU6050 = 0x68; // MPU-6050 I2C address
+float X_a, Y_a, Z_a; // Accelerometer outputs (in g)
+float GX, GY, GZ; // Gyroscope outputs (in deg/sec)
 bool tilt_enable;
 int tilt_thres, tilt_trig, tilt_cnt;
 int tilt; // array of 16 bits
@@ -34,6 +40,18 @@ int motion_setup() {
 	//mpu.initialize();
 	//if (mpu.testConnection() == false) return -1;
 	
+	//configure MPU6050
+	Wire.beginTransmission(MPU6050); // sends this to MPU6050 address
+  	Wire.write(0x6B);   // PWR_MGMT_1 register
+  	Wire.write(0x00);   // Wake the sensor up (it starts in sleep mode by default)
+  	Wire.endTransmission();
+  	delay(10); // give time to boot up device
+	
+	Wire.beginTransmission(MPU6050);
+	Wire.write(0x1C);   // ACCEL_CONFIG register (adjusts range of measureable acceleration (default is 2))
+	Wire.write(0x10);   // sets the range to 16 which gives the range ±8g 
+	Wire.endTransmission();
+
 	// setup tilt sensor
 	pinMode(PIN_TILT, INPUT);
 	
@@ -45,6 +63,8 @@ int motion_setup() {
 	
 	m_is_tilted = false;
 	m_mtn_angle = 0;
+
+	m_mtn_abnormal = false;
 
 	return 0;
 }
@@ -98,7 +118,41 @@ void motion_loop() {
 	}
 
 	
-	// read accelerometer, determine abnormal state
+	// read accelerometer, determine abnormal state 
+	Wire.beginTransmission(MPU6050);
+  	Wire.write(0x3B); // Starts at ACCEL_XOUT_H
+  	Wire.endTransmission(false);
+  	Wire.requestFrom(MPU6050, 6, true);
+
+	X_a = (Wire.read() << 8 | Wire.read());
+  	Y_a = (Wire.read() << 8 | Wire.read());
+  	Z_a = (Wire.read() << 8 | Wire.read());
+
+	// Convert to g (range is +/-8g -> 4096.0 per g)
+	X_a = X_a / 4096.0;
+  	Y_a = Y_a / 4096.0;
+  	Z_a = Z_a / 4096.0;
+
+	Wire.beginTransmission(MPU6050);
+  	Wire.write(0x43); // Start at GYRO_XOUT_H
+  	Wire.endTransmission(false);
+  	Wire.requestFrom(MPU6050, 6, true);
+
+  	GX = (Wire.read() << 8 | Wire.read());
+  	GY = (Wire.read() << 8 | Wire.read());
+  	GZ = (Wire.read() << 8 | Wire.read());
+
+  	// Convert to deg/sec (default range is +/-250 deg/s -> 131 LSB per deg/s)
+  	GX = GX / 131.0;
+  	GY = GY / 131.0;
+  	GZ = GZ / 131.0;
+	
+	float acc_mag = sqrt(X_out*X_out + Y_out*Y_out + Z_out*Z_out); // magnitude of acceleration
+	if(acc_mag> ACC_THRES) m_mtn_abnormal = true;
+
+	float gyro_mag = sqrt(GX_out*GX_out + GY_out*GY_out + GZ_out*GZ_out); // magnitude of gyro
+	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
+
 
 	return;
 }
@@ -107,5 +161,6 @@ void motion_dismiss() {
 	tilt_enable = true; 
 	m_is_tilted = false; 
 	tilt = 0; tilt_cnt = 0;
+	m_mtn_abnormal = false;
 	return;
 }
