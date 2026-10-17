@@ -147,10 +147,10 @@ void motion_loop() {
   	GY = GY / 131.0;
   	GZ = GZ / 131.0;
 	
-	float acc_mag = sqrt(X_out*X_out + Y_out*Y_out + Z_out*Z_out); // magnitude of acceleration
+	float acc_mag = sqrt(X_a*X_a + Y_a*Y_a + Z_a*Z_a); // magnitude of acceleration
 	if(acc_mag> ACC_THRES) m_mtn_abnormal = true;
 
-	float gyro_mag = sqrt(GX_out*GX_out + GY_out*GY_out + GZ_out*GZ_out); // magnitude of gyro
+	float gyro_mag = sqrt(GX*GX + GY*GY + GZ*GZ); // magnitude of gyro
 	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
 
 
