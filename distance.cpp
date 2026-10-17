@@ -11,14 +11,18 @@
 #include "alert.h"
 
 #include <Servo.h>
+#include <VL53L1X.h> //Download Vl53L1X Pololu library
 
 // pin defines in distance.h
 
 #define ULTRASONIC_CONV 58
 
 #define US_THRES 1500
-#define LD_THRES 1500
+#define LD_THRES 100 //In long mode, VL53L1X can measure up to 360cm
 
+#define LD_TIMEOUT 500 //500ms
+#define LD_BUDGET 50000 //50,000us = 50ms
+#define LD_PERIOD 50 //50ms
 // public vars
 int m_us_cm;
 int m_ld_cm;
@@ -29,6 +33,8 @@ int m_sv_steps;
 
 // private vars
 Servo servo;
+VL53L1X lidar;
+
 int sense_step, now_step;
 int servo_timer;
 
@@ -41,8 +47,19 @@ struct dist_t {
 
 int distance_setup() {
 	// assumed i2c is alr setup at this point
+
 	// setup lidar
-	
+	lidar.setTimeout(LD_TIMEOUT);
+	//initialises and tests if lidar initialised
+	if(!lidar.init()){
+		Serial.println("Lidar failed init");
+		return -1;
+	}
+	lidar.setDistanceMode(VL53L1X::Long); //DistanceMode: Short/Medium/Long. If the mode is set to longer distances, it measures longer distnaces better, but reading becomes more innacurate with ambient light
+  	lidar.setMeasurementTimingBudget(LD_BUDGET);//does all the measurements in 50ms
+  	lidar.startContinuous(LD_PERIOD);//starts measuring distance every 50ms. Since the timing budget is 50ms, and startContinous is 50ms, the moment one reading it done, the next one starts
+
+
 	// setup ultrasonic
 	pinMode(PIN_US_TRIG, OUTPUT);
 	pinMode(PIN_US_ECHO, INPUT);
@@ -64,7 +81,6 @@ int distance_setup() {
 	// for (int i = 0; i < 180; i++) us_a[i].m = 0;
 	// memset(&us_a[0], 0x00, 180*sizeof(dist_t));
 	// memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
-	
 	return 0; // all good
 }
 
@@ -101,12 +117,23 @@ void distance_loop() {
 	
 	
 	// grab lidar measurement
+	m_ld_cm = lidar.read()/10;
+	int ld_status = lidar.ranging_data.range_status;
+	bool m_ld_reliable = !lidar.timeoutOccurred() && (ld_status == VL53L1X::RangeValid || ld_status == VL53L1X::RangeValidMinRangeClipped);
 	
+	if(!m_ld_reliable) m_ld_cm = 0;
+
 	// if the distance is below the threshold
 	// raise the alarm
 	if (m_us_cm < US_THRES) alert_start(ALERT_URGENT, 10);
+	if (m_ld_reliable && m_ld_cm < LD_THRES) alert_start(ALERT_URGENT, 10);
 	
-	
+
+	// Might improve accuracy??
+	// if (lidar.ranging_data.range_status != VL53L1X::RangeValid || !m_ld_ok) {
+	// m = m_us_cm;
+	//} else m = (m_us_cm + m_ld_cm)/2;
+
 	//for (int i = 0; i < 180; i++) {
 	//	if (us_a[i].m < US_THRES)
 	//		alert_start(ALERT_URGENT, 10);
