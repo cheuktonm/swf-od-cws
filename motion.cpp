@@ -2,6 +2,8 @@
 // for ELEN30013 Semester 2, 2026
 // C. Mong 1606303 (cheukton.mong@student.unimelb.edu.au)
 
+// 261018 - merge mpu implementation from Calder
+// 261017 - add motion module disable option
 // 260924 - fix tilt logic
 // 260915 - write the motion module
 
@@ -9,8 +11,6 @@
 #include <Wire.h>
 #include "motion.h"
 #include "alert.h"
-
-//#include "MPU6050.h"
 
 // pin defines in motion.h
 
@@ -26,7 +26,6 @@ char c_tilt_neg;
 int m_mtn_angle;
 
 // private vars
-//MPU6050 mpu;
 int MPU6050 = 0x68; // MPU-6050 I2C address
 float X_a, Y_a, Z_a; // Accelerometer outputs (in g)
 float GX, GY, GZ; // Gyroscope outputs (in deg/sec)
@@ -36,9 +35,6 @@ int tilt; // array of 16 bits
 
 int motion_setup() {
 	// assumed i2c is alr setup at this point
-	// init accelerometer
-	//mpu.initialize();
-	//if (mpu.testConnection() == false) return -1;
 	
 	//configure MPU6050
 	Wire.beginTransmission(MPU6050); // sends this to MPU6050 address
@@ -62,7 +58,6 @@ int motion_setup() {
 	tilt = 0;
 	
 	m_is_tilted = false;
-	m_mtn_angle = 0;
 
 	m_mtn_abnormal = false;
 
@@ -92,6 +87,11 @@ int motion_config() {
 		case 'A': m_tilt_neg = read_tilt(true); break;
 		case 'H': m_tilt_neg = false; break;
 		case 'V': m_tilt_neg = true; break;
+		case 'D': // disabled
+				tilt_enable = false;
+				m_is_tilted = false;
+				m_mtn_abnormal = false;
+				break; 
 	}
 
 	Serial.print("motion_config(): ");
@@ -103,6 +103,7 @@ int motion_config() {
 }
 
 void motion_loop() {
+	if (c_tilt_neg == 'D') return;
 	// tilt switch
 	if (tilt_enable) {
 		int now = millis();
@@ -116,7 +117,6 @@ void motion_loop() {
 			}
 		}
 	}
-
 	
 	// read accelerometer, determine abnormal state 
 	Wire.beginTransmission(MPU6050);
@@ -153,11 +153,11 @@ void motion_loop() {
 	float gyro_mag = sqrt(GX*GX + GY*GY + GZ*GZ); // magnitude of gyro
 	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
 
-
 	return;
 }
 
 void motion_dismiss() {
+	if (c_tilt_neg == 'D') return;
 	tilt_enable = true; 
 	m_is_tilted = false; 
 	tilt = 0; tilt_cnt = 0;

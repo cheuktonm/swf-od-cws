@@ -2,6 +2,7 @@
 // for ELEN30013 Semester 2, 2026
 // C. Mong (cheukton.mong@student.unimelb.edu.au)
 
+// 261018 - merge lidar implementation from Calder, cleanup
 // 261001 - implement angle-distance array
 // 260914 - write the distance module, ultrasonic, servo
 
@@ -23,6 +24,7 @@
 #define LD_TIMEOUT 500 //500ms
 #define LD_BUDGET 50000 //50,000us = 50ms
 #define LD_PERIOD 50 //50ms
+
 // public vars
 int m_us_cm;
 int m_ld_cm;
@@ -37,13 +39,7 @@ VL53L1X lidar;
 
 int sense_step, now_step;
 int servo_timer;
-
-struct dist_t {
-	int m; // measurement
-	//int a; // angle
-	//int t; // time
-};
-// dist_t us_a[180];//, ld_a[180]; // 180 slots
+bool lidar_ok;
 
 int distance_setup() {
 	// assumed i2c is alr setup at this point
@@ -53,8 +49,9 @@ int distance_setup() {
 	//initialises and tests if lidar initialised
 	if(!lidar.init()){
 		Serial.println("Lidar failed init");
-		return -1;
-	}
+		lidar_ok = false;
+		//return -1;
+	} else lidar_ok = true;
 	lidar.setDistanceMode(VL53L1X::Long); //DistanceMode: Short/Medium/Long. If the mode is set to longer distances, it measures longer distnaces better, but reading becomes more innacurate with ambient light
   	lidar.setMeasurementTimingBudget(LD_BUDGET);//does all the measurements in 50ms
   	lidar.startContinuous(LD_PERIOD);//starts measuring distance every 50ms. Since the timing budget is 50ms, and startContinous is 50ms, the moment one reading it done, the next one starts
@@ -78,9 +75,6 @@ int distance_setup() {
 	
 	m_us_cm = 0; m_ld_cm = 0;
 	
-	// for (int i = 0; i < 180; i++) us_a[i].m = 0;
-	// memset(&us_a[0], 0x00, 180*sizeof(dist_t));
-	// memset(&ld_a[0], 0x00, 180*sizeof(dist_t));
 	return 0; // all good
 }
 
@@ -111,44 +105,34 @@ void distance_loop() {
 	delayMicroseconds(10);
 	digitalWrite(PIN_US_TRIG, LOW);
 	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
-	//for (int i = 0; i < sense_step; i++) {
-	//	us_a[(sense_step*now_step)+i].m = m_us_cm;
-	//}	
-	
 	
 	// grab lidar measurement
-	m_ld_cm = lidar.read()/10;
-	int ld_status = lidar.ranging_data.range_status;
-	bool m_ld_reliable = !lidar.timeoutOccurred() && (ld_status == VL53L1X::RangeValid || ld_status == VL53L1X::RangeValidMinRangeClipped);
+	if (lidar_ok) {
+		m_ld_cm = lidar.read()/10;
+		int ld_status = lidar.ranging_data.range_status;
+		bool m_ld_reliable = !lidar.timeoutOccurred() && (ld_status == VL53L1X::RangeValid || ld_status == VL53L1X::RangeValidMinRangeClipped);
 	
-	if(!m_ld_reliable) m_ld_cm = 0;
-
+		if(!m_ld_reliable) m_ld_cm = 0; // a value of 0 signals invalid reading.
+	} else m_ld_cm = 0;
+	
+	// Might improve accuracy??
+	// if (m_ld_cm && m_us_cm)
+	// 	  m = (m_us_cm + m_ld_cm)/2;
+	// else m = 0;
+	
 	// if the distance is below the threshold
 	// raise the alarm
-	if (m_us_cm < US_THRES) alert_start(ALERT_URGENT, 10);
-	if (m_ld_reliable && m_ld_cm < LD_THRES) alert_start(ALERT_URGENT, 10);
-	
-
-	// Might improve accuracy??
-	// if (lidar.ranging_data.range_status != VL53L1X::RangeValid || !m_ld_ok) {
-	// m = m_us_cm;
-	//} else m = (m_us_cm + m_ld_cm)/2;
-
-	//for (int i = 0; i < 180; i++) {
-	//	if (us_a[i].m < US_THRES)
-	//		alert_start(ALERT_URGENT, 10);
-		//if (ld_a[i].m < LD_THRES)
-		//	alert_start(ALERT_URGENT, 10);
-	//}
+	if (m_us_cm && m_us_cm < US_THRES) alert_start(ALERT_URGENT, 10);
+	if (m_ld_cm && m_ld_cm < LD_THRES) alert_start(ALERT_URGENT, 10);
 	
 	// rotate platform
 	int now = millis();
 	if (m_sv_enable) {
 		if (now-servo_timer > 500) {
-			Serial.print(m_sv_lefts);Serial.print(' ');
-			Serial.print(sense_step);Serial.print(' ');
-			Serial.print(now_step);Serial.print(' ');
-			Serial.print(m_sv_enable);Serial.println(' ');
+			//Serial.print(m_sv_lefts);Serial.print(' ');
+			//Serial.print(sense_step);Serial.print(' ');
+			//Serial.print(now_step);Serial.print(' ');
+			//Serial.print(m_sv_enable);Serial.println(' ');
 			
 			servo_timer = now;
 			// our range is 180 degrees, divided by sense_step

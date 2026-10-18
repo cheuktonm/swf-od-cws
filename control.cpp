@@ -162,12 +162,12 @@ void control_loop() {
 			lcd.clear();
 			lcd.setCursor(0,0);
 			//lcd.print("US "); lcd.print(min(m_us_cm/100, 99)); // print ultrasonic reading (m)
-			lcd.print("US "); lcd.print(m_us_cm);
+			lcd.print("US "); m_us_cm ? lcd.print(m_us_cm) : lcd.print('-');
 			lcd.setCursor(7,0);
 			lcd.print("TL "); lcd.write(m_is_tilted ? LCD_CHAR_FULL : ' '); // tilt sensor
 			lcd.setCursor(0,1); 
 			//lcd.print("LD "); lcd.print(min(m_ld_cm/100, 99)); // print lidar reading (m)
-			lcd.print("LD "); lcd.print(m_ld_cm);
+			lcd.print("LD "); m_ld_cm ? lcd.print(m_ld_cm) : lcd.print('-');
 			lcd.setCursor(7,1); 
 			lcd.print("AC "); lcd.write(m_mtn_abnormal ? LCD_CHAR_FULL : ' '); // accelerometer status
 
@@ -202,6 +202,7 @@ void control_loop() {
 				config_state = 0;
 			} else if (btn_left) { // dismiss any alerts
 				alert_stop();
+				motion_dismiss();
 			} break;
 		case 100:
 			if (btn_ok) { // dismiss error
@@ -231,6 +232,7 @@ int configuration() {
 	} else switch(config_state) { // abuse of notation
 		case CFG_SAVE:
 			if (btn_ok) {
+				lcd.setCursor(0,1); lcd.print('\\'); // give indication it is trying
 				config_sel = 0; config_val = -1;
 				if (save_eeprom(64+3) == 0) { 
 					lcd.setCursor(0,1); lcd.print("       OK!"); 
@@ -286,7 +288,8 @@ int configuration() {
 				switch (c_tilt_neg) {
 					case 'A': c_tilt_neg = 'H'; break;
 					case 'H': c_tilt_neg = 'V'; break;
-					case 'V': c_tilt_neg = 'A'; break;
+					case 'V': c_tilt_neg = 'D'; break;
+					case 'D': c_tilt_neg = 'A'; break;
 				} enter = true;
 			} break;
 			
@@ -335,12 +338,13 @@ int configuration() {
 			
 		case CFG_MT_TL: 
 			if (enter) { enter = false;
-				lcd_print_cfghd(config_sel, "Tilt Orient*");
+				lcd_print_cfghd(config_sel, "Motion mode");
 				lcd.setCursor(0,1);
 				switch (c_tilt_neg) {
 					case 'A': lcd.print(" Auto"); break;
 					case 'H': lcd.print(" Horizontal"); break;
 					case 'V': lcd.print(" Vertical"); break;
+					case 'D': lcd.print(" Disabled"); break;
 				}
 			} break;
 			

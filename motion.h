@@ -19,6 +19,5 @@ extern bool m_is_tilted;
 extern bool m_mtn_abnormal;
 extern bool m_tilt_neg;
 extern char c_tilt_neg;
-extern int m_mtn_angle;
 
 #endif

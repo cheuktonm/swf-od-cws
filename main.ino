@@ -31,10 +31,10 @@ int load_eeprom(int b) {
 	EEPROM.get(b+i, m_sv_enable); 	i = i+sizeof(m_sv_enable);
 	EEPROM.get(b+i, m_sv_lefts); 	i = i+sizeof(m_sv_lefts);
 	EEPROM.get(b+i, m_sv_rights); 	i = i+sizeof(m_sv_rights);
+	EEPROM.get(b+i, m_sv_steps); 	i = i+sizeof(m_sv_steps);
 	
-	// tilt orientation
+	// motion module mode
 	EEPROM.get(b+i, c_tilt_neg); 	i = i+sizeof(c_tilt_neg);
-	
 
 	// process config
 	motion_config();
@@ -56,8 +56,9 @@ int save_eeprom(int b) {
 	EEPROM.put(b+i, m_sv_enable); 	i = i+sizeof(m_sv_enable);
 	EEPROM.put(b+i, m_sv_lefts); 	i = i+sizeof(m_sv_lefts);
 	EEPROM.put(b+i, m_sv_rights); 	i = i+sizeof(m_sv_rights);
+	EEPROM.put(b+i, m_sv_steps); 	i = i+sizeof(m_sv_steps);
 	
-	// tilt orientation
+	// motion module mode
 	EEPROM.put(b+i, c_tilt_neg); 	i = i+sizeof(c_tilt_neg);
 	
 	// process config
@@ -89,13 +90,16 @@ void setup() {
 	if (alert_setup()) 		ok = min(e, 2);
 	if (motion_setup())		ok = min(e, 3);
 	if (distance_setup())	ok = min(e, 4);
-	
+
+#define HANGUP // disable in prod
+#ifdef HANGUP 
 	if (!ok) {
 		char x[3]; x[0] = 0x00; x[1] = 0x00; x[2] = 0x00;
 		control_errmsg(F("Device error."), itoa(e, &x[0], 10));
 		alert_start(ALERT_ERROR);
 		delay(3600000); // hang up the device
 	}
+#endif
 #endif
 
 	bool eeprom_ok = false;
@@ -129,6 +133,9 @@ void setup() {
 	m_sv_rights = 180;
 	m_sv_steps = 180;
 	distance_config();
+	c_tilt_neg = 'A';
+	motion_config();
+	
 	
 	while (Serial.available()) {
 		char x = Serial.read();
