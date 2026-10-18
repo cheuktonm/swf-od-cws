@@ -94,9 +94,9 @@ int motion_config() {
 				break; 
 	}
 
-	Serial.print("motion_config(): ");
-	Serial.print("tn="); Serial.print(c_tilt_neg); 
-	Serial.print("->"); Serial.println(m_tilt_neg ? 'O' : 'X');
+	//Serial.print("motion_config(): ");
+	//Serial.print("tn="); Serial.print(c_tilt_neg); 
+	//Serial.print("->"); Serial.println(m_tilt_neg ? 'O' : 'X');
 	
 	tilt = 0;
 	return 0;
@@ -152,6 +152,8 @@ void motion_loop() {
 
 	float gyro_mag = sqrt(GX*GX + GY*GY + GZ*GZ); // magnitude of gyro
 	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
+	
+	// Serial.print(acc_mag); Serial.print(' '); Serial.print(gyro_mag); Serial.println(' ');
 
 	return;
 }

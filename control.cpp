@@ -48,7 +48,7 @@ LiquidCrystal lcd(PIN_LCD_RS,
 								
 int menu_state, menu_state_last;
 unsigned int menu_timer;
-bool enter;
+bool enter, enter_cfg;
 unsigned int config_state;
 bool config_sel;
 unsigned int config_val;
@@ -85,7 +85,7 @@ int control_setup() {
 	config_state = 0;
 	config_sel = 0;
 	config_val = 0;
-	enter = true;
+	enter = true; enter_cfg = false;
 	
 	btn_ok = false; btn_right = false; btn_left = false;
 	btn_ok_ = false; btn_right_ = false; btn_left_ = false;
@@ -226,9 +226,9 @@ void lcd_print_cfghd(bool sel, char* name) {
 int configuration() {
 	// handle button inputs
 	if (btn_right && !config_sel && config_state && config_state < CFG_EXIT) {
-		enter = true; config_state++;
+		enter = true; config_state++; enter_cfg = true;
 	} else if (btn_left && !config_sel && config_state > 1) {
-		enter = true; config_state--;
+		enter = true; config_state--; enter_cfg = true;
 	} else switch(config_state) { // abuse of notation
 		case CFG_SAVE:
 			if (btn_ok) {
@@ -299,7 +299,7 @@ int configuration() {
 	// print stuffs to lcd
 	switch (config_state) {
 		case 0: // just entered config mode
-			config_sel = false; config_val = 0; 
+			config_sel = false; config_val = 0;
 			config_state = 1; // falls through switch
 		// -- below state becomes 1st selection upon entering config
 		
@@ -321,16 +321,19 @@ int configuration() {
 			} break;
 			
 		case CFG_SV_LS: // servo left stop
+			if (enter_cfg) { config_val = m_sv_lefts; enter_cfg = false; }
 			if (enter) { enter = false;
 				lcd_print_cfghd(config_sel, "SV Left Stop");
 				lcd.setCursor(0,1); lcd.print(config_val);
 			} break;
 		case CFG_SV_RS: // servo right stop
+			if (enter_cfg) { config_val = m_sv_rights; enter_cfg = false; }
 			if (enter) { enter = false;
 				lcd_print_cfghd(config_sel, "SV Rght Stop");
 				lcd.setCursor(0,1); lcd.print(config_val);
 			} break;
 		case CFG_SV_AS: // servo angle step
+			if (enter_cfg) { config_val = m_sv_steps; enter_cfg = false; }
       		if (enter) { enter = false;
 				lcd_print_cfghd(config_sel, "SV Angl Step");
 				lcd.setCursor(0,1); lcd.print(config_val);

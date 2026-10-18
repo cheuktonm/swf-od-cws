@@ -2,6 +2,7 @@
 // for ELEN30013 Semester 2, 2026
 // C. Mong (cheukton.mong@student.unimelb.edu.au)
 
+// 261018 - add factory reset config_rom
 // 260925 - implement eeprom function
 // 260916 - implement debug module
 // 260915 - laid out execution flow
@@ -23,6 +24,10 @@ int dbg_pos;
 #endif
 
 unsigned int m_battery;
+unsigned char config_rom[16] = {
+	0x73, 0x77, 0x66, 0x01, 0x00, 0x00, 0x00, 0xB4, 0x00, 0xB4, 0x00, 0x41,
+	0x00, 0x00, 0x00, 0x00
+}; // sv ON, lefts0, rights180, steps180, tilt auto
 
 int load_eeprom(int b) {
 	int i = 0;
@@ -104,7 +109,7 @@ void setup() {
 
 	bool eeprom_ok = false;
 	// load configuration data from EEPROM
-	if (0 && EEPROM.length() > 256) {
+	if (1 && EEPROM.length() > 256) {
 		// first, verify the eeprom has config data
 		char ep_head[3]; 
 		for (int i = 0; i < 3; i++) {
@@ -117,26 +122,19 @@ void setup() {
 	
 #ifdef DEBUG
 	if (eeprom_ok) {
-		Serial.print("m_sv_enable:"); Serial.print(m_sv_enable ? 'o':'x'); Serial.print(' ');
+		Serial.println(' ');
+		Serial.print("m_sv_enable:"); Serial.print(m_sv_enable); Serial.print(' ');
 		Serial.print("m_sv_lefts:"); Serial.print(m_sv_lefts); Serial.print(' ');
 		Serial.print("m_sv_rights:"); Serial.print(m_sv_rights); Serial.print(' ');
-		Serial.println(' ');
-		Serial.print("m_tilt_neg:"); Serial.print(m_tilt_neg ? 'o':'x'); Serial.print(' '); 
+		Serial.print("m_sv_steps:"); Serial.print(m_sv_steps); Serial.print(' ');
+		// Serial.println(' ');
+		Serial.print("c_tilt_neg:"); Serial.print(c_tilt_neg); Serial.print(' '); 
+		Serial.print("m_tilt_neg:"); Serial.print(m_tilt_neg ? 'O':'X'); Serial.print(' '); 
 		Serial.println(' ');
 		
 		Serial.println("read  OK. now begin loop() ...\n");
 	} else Serial.println("read  NG. now begin loop() ...\n");
-	
-	// 261015 temp debug
-	m_sv_enable = 1;
-	m_sv_lefts = 0;
-	m_sv_rights = 180;
-	m_sv_steps = 180;
-	distance_config();
-	c_tilt_neg = 'A';
-	motion_config();
-	
-	
+
 	while (Serial.available()) {
 		char x = Serial.read();
 	} // Serial.println("\n press enter to continue");
@@ -144,6 +142,18 @@ void setup() {
 	//while (!Serial.available()) delay(1);
 	//while (Serial.available()) char x = Serial.read();
 	Serial.println("OK.");
+#else
+	if (!eeprom_ok) {
+		// configure sensible defaults if config failed
+		m_sv_enable = 1;
+		m_sv_lefts = 0;
+		m_sv_rights = 180;
+		m_sv_steps = 180;
+		distance_config();
+		c_tilt_neg = 'A';
+		motion_config();
+		control_errmsg("NoCFG-use dfault", "Pls factory rset", false);
+	}
 #endif
 }
 
@@ -177,6 +187,14 @@ void debug() {
 		*cmdend = 0x00;
 		// process debug command
 		switch (dbg_buf[0]) {
+			case 'F': // factory commands
+				if (dbg_buf[1] == 'x') {
+					// factory reset the device
+					// load good config from ROM
+					for (int i = 0; i < sizeof(config_rom); i++)
+						EEPROM.put(64+i, config_rom[i]);
+					Serial.print("Loaded config from ROM.");
+				} break;
 			case 'A': // test alerts
 				if (dbg_buf[1] == 'X') {
 					alert_stop(); Serial.print("Alerts cancelled.");
