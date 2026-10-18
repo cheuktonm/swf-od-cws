@@ -111,7 +111,7 @@ void motion_loop() {
 			tilt_cnt = now;
 			if (read_tilt()) {
 				m_is_tilted = true;
-				// alert_start(ALERT_URGENT, 0);
+				alert_start(ALERT_URGENT, 0);
 				// tilt does not rearm until deasserted
 				tilt_enable = false; 
 			}
@@ -152,6 +152,10 @@ void motion_loop() {
 
 	float gyro_mag = sqrt(GX*GX + GY*GY + GZ*GZ); // magnitude of gyro
 	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
+	
+	// TODO: abnormal motion alarm activation should have thresholds
+	//if (m_mtn_abnormal) 
+	//	alert_start(ALERT_URGENT, 5);
 	
 	// Serial.print(acc_mag); Serial.print(' '); Serial.print(gyro_mag); Serial.println(' ');
 

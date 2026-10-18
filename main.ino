@@ -25,8 +25,8 @@ int dbg_pos;
 
 unsigned int m_battery;
 unsigned char config_rom[16] = {
-	0x73, 0x77, 0x66, 0x01, 0x00, 0x00, 0x00, 0xB4, 0x00, 0xB4, 0x00, 0x41,
-	0x00, 0x00, 0x00, 0x00
+	0x73, 0x77, 0x66, 0x01, 0x00, 0x00, 0x00, 0xB4, 0x00, 0xB4, 0x00, 0xDC,
+	0x05, 0xC8, 0x00, 0x41
 }; // sv ON, lefts0, rights180, steps180, tilt auto
 
 int load_eeprom(int b) {
@@ -37,6 +37,10 @@ int load_eeprom(int b) {
 	EEPROM.get(b+i, m_sv_lefts); 	i = i+sizeof(m_sv_lefts);
 	EEPROM.get(b+i, m_sv_rights); 	i = i+sizeof(m_sv_rights);
 	EEPROM.get(b+i, m_sv_steps); 	i = i+sizeof(m_sv_steps);
+	
+	// distance thresholds
+	EEPROM.get(b+i, m_us_thres); 	i = i+sizeof(m_us_thres);
+	EEPROM.get(b+i, m_ld_thres); 	i = i+sizeof(m_ld_thres);
 	
 	// motion module mode
 	EEPROM.get(b+i, c_tilt_neg); 	i = i+sizeof(c_tilt_neg);
@@ -62,6 +66,10 @@ int save_eeprom(int b) {
 	EEPROM.put(b+i, m_sv_lefts); 	i = i+sizeof(m_sv_lefts);
 	EEPROM.put(b+i, m_sv_rights); 	i = i+sizeof(m_sv_rights);
 	EEPROM.put(b+i, m_sv_steps); 	i = i+sizeof(m_sv_steps);
+	
+	// distance thresholds
+	EEPROM.put(b+i, m_us_thres); 	i = i+sizeof(m_us_thres);
+	EEPROM.put(b+i, m_ld_thres); 	i = i+sizeof(m_ld_thres);
 	
 	// motion module mode
 	EEPROM.put(b+i, c_tilt_neg); 	i = i+sizeof(c_tilt_neg);
@@ -131,6 +139,9 @@ void setup() {
 		Serial.print("c_tilt_neg:"); Serial.print(c_tilt_neg); Serial.print(' '); 
 		Serial.print("m_tilt_neg:"); Serial.print(m_tilt_neg ? 'O':'X'); Serial.print(' '); 
 		Serial.println(' ');
+		Serial.print("m_us_thres:"); Serial.print(m_us_thres); Serial.print(' ');
+		Serial.print("m_ld_thres:"); Serial.print(m_ld_thres); Serial.print(' ');
+		Serial.println(' ');
 		
 		Serial.println("read  OK. now begin loop() ...\n");
 	} else Serial.println("read  NG. now begin loop() ...\n");
@@ -193,6 +204,7 @@ void debug() {
 					// load good config from ROM
 					for (int i = 0; i < sizeof(config_rom); i++)
 						EEPROM.put(64+i, config_rom[i]);
+					load_eeprom(64+3);
 					Serial.print("Loaded config from ROM.");
 				} break;
 			case 'A': // test alerts

@@ -18,8 +18,9 @@
 
 #define ULTRASONIC_CONV 58
 
-#define US_THRES 1500
-#define LD_THRES 100 //In long mode, VL53L1X can measure up to 360cm
+// urgent alert thresholds are not user configurable
+#define US_THRES_UR 300
+#define LD_THRES_UR 100 //In long mode, VL53L1X can measure up to 360cm
 
 #define LD_TIMEOUT 500 //500ms
 #define LD_BUDGET 50000 //50,000us = 50ms
@@ -33,10 +34,15 @@ int m_sv_lefts;
 int m_sv_rights;
 int m_sv_steps;
 
+int m_us_thres;
+int m_ld_thres;
+
 // private vars
 Servo servo;
 VL53L1X lidar;
 
+int m_us_last;
+int m_ld_last;
 int sense_step, now_step;
 int servo_timer;
 bool lidar_ok;
@@ -73,6 +79,8 @@ int distance_setup() {
 	sense_step = 0;
 	now_step = 0;
 	
+	m_us_last = 0; m_ld_last = 0;
+	
 	m_us_cm = 0; m_ld_cm = 0;
 	
 	return 0; // all good
@@ -101,6 +109,7 @@ int distance_config() {
 
 void distance_loop() {
 	// grab ultrasonic measurement
+	m_us_last = m_us_cm;
 	digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
 	delayMicroseconds(10);
 	digitalWrite(PIN_US_TRIG, LOW);
@@ -108,6 +117,7 @@ void distance_loop() {
 	
 	// grab lidar measurement
 	if (lidar_ok) {
+		m_ld_last = m_ld_cm;
 		m_ld_cm = lidar.read()/10;
 		int ld_status = lidar.ranging_data.range_status;
 		bool m_ld_reliable = !lidar.timeoutOccurred() && (ld_status == VL53L1X::RangeValid || ld_status == VL53L1X::RangeValidMinRangeClipped);
@@ -120,10 +130,16 @@ void distance_loop() {
 	// 	  m = (m_us_cm + m_ld_cm)/2;
 	// else m = 0;
 	
-	// if the distance is below the threshold
+	// if the distance is below the *warning* threshold
 	// raise the alarm
-	if (m_us_cm && m_us_cm < US_THRES) alert_start(ALERT_URGENT, 10);
-	if (m_ld_cm && m_ld_cm < LD_THRES) alert_start(ALERT_URGENT, 10);
+	if (m_us_cm && m_us_cm < m_us_thres && m_us_last < m_us_thres) 
+		alert_start(ALERT_URGENT, 10);
+	
+	// if the distance is below the *urgent* threshold
+	if (m_us_cm && m_us_cm < US_THRES_UR && m_us_last < US_THRES_UR) 
+		alert_start(ALERT_URGENT, 10);
+	// if (m_ld_cm && m_ld_cm < LD_THRES_UR && m_ld_last < LD_THRES_UR) 
+	//	  alert_start(ALERT_URGENT, 10);
 	
 	// rotate platform
 	int now = millis();

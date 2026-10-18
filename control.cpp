@@ -23,6 +23,9 @@
 #define LCD_CHAR_FULL	    3
 #define LCD_CHAR_HALF		4
 
+#define VERSION_MAJOR '0'
+#define VERSION_MINOR 'a'
+
 // main.ino import
 int save_eeprom(int b);
 
@@ -35,8 +38,10 @@ int configuration();
 #define CFG_SV_RS 4 // servo right stop
 #define CFG_SV_AS 5 // servo angle step
 #define CFG_MT_TL 6 // tilt sensor behaviour
-#define CFG_SAVE  7 // write to eeprom
-#define CFG_EXIT  8 // always the last option
+#define CFG_TH_US 7 // ultrasonic threshold
+#define CFG_TH_LD 8 // lidar threshold
+#define CFG_SAVE  9 // write to eeprom
+#define CFG_EXIT  10 // always the last option
 
 // private vars
 LiquidCrystal lcd(PIN_LCD_RS, 
@@ -64,6 +69,10 @@ int control_setup() {
 	lcd.print(F("SWF-OD-CWS"));
 	lcd.setCursor(0,1);
 	lcd.print(F("Starting..."));
+	
+	lcd.setCursor(14,0); lcd.write('V');
+	lcd.setCursor(15,0); lcd.write(VERSION_MAJOR);
+	lcd.setCursor(15,1); lcd.write(VERSION_MINOR);
 	
 	const char full_t[8] = {3,3,3,3,3,3,3,3}; 
 	const char half_t[8] = {0,0,0,0,3,3,3,3};
@@ -170,6 +179,13 @@ void control_loop() {
 			lcd.print("LD "); m_ld_cm ? lcd.print(m_ld_cm) : lcd.print('-');
 			lcd.setCursor(7,1); 
 			lcd.print("AC "); lcd.write(m_mtn_abnormal ? LCD_CHAR_FULL : ' '); // accelerometer status
+			
+			// print_mute()
+			lcd.setCursor(12,0); lcd.write(m_bzz_mode ? 'M' : ' ');
+			lcd.setCursor(12,1);
+			if (m_bzz_mode == 0) lcd.write(' ');
+			else if (m_bzz_mode == 1) lcd.write('/');
+			else if (m_bzz_mode == 2) lcd.write('X');
 
 			print_battery();
 			break;
@@ -193,6 +209,9 @@ void control_loop() {
 				enter = true;
 				menu_state_last = 0;
 				menu_state = 1;
+				
+				alert_stop();
+				motion_dismiss();
 			} break;
 		case 1:
 			if (btn_ok) { // idle -> configuration
@@ -200,9 +219,15 @@ void control_loop() {
 				menu_state_last = 1;
 				menu_state = 2;
 				config_state = 0;
+				
+				alert_stop();
+				motion_dismiss();
 			} else if (btn_left) { // dismiss any alerts
 				alert_stop();
 				motion_dismiss();
+			} else if (btn_right) { // set  mute mode
+				m_bzz_mode = (m_bzz_mode == 2) ? 0 : m_bzz_mode+1;
+				alert_stop();
 			} break;
 		case 100:
 			if (btn_ok) { // dismiss error
@@ -283,6 +308,25 @@ int configuration() {
 				config_val = min(config_val+1, 180); enter = true;
 			} break;
 			
+		case CFG_TH_US:
+			if (btn_ok) {
+				if (config_sel) m_us_thres = config_val;
+				config_sel = config_sel ? false : true; enter = true;
+			} else if (btn_left) {
+				config_val = max(config_val - 10, 0); enter = true;
+			} else if (btn_right) {
+				config_val = config_val + 10; enter = true;
+			} break;
+		case CFG_TH_LD:
+			if (btn_ok) {
+				if (config_sel) m_ld_thres = config_val;
+				config_sel = config_sel ? false : true; enter = true;
+			} else if (btn_left) {
+				config_val = max(config_val-10, 0); enter = true;
+			} else if (btn_right) {
+				config_val = config_val+10; enter = true;
+			} break;
+			
 		case CFG_MT_TL: 
 			if (btn_ok) {
 				switch (c_tilt_neg) {
@@ -350,6 +394,19 @@ int configuration() {
 					case 'D': lcd.print(" Disabled"); break;
 				}
 			} break;
+			
+		case CFG_TH_US: // ultrasonic threshold
+			if (enter_cfg) { config_val = m_us_thres; enter_cfg = false; }
+			if (enter) { enter = false;
+				lcd_print_cfghd(config_sel, "US Threshold");
+				lcd.setCursor(0,1); lcd.print(config_val);
+			} break;
+		case CFG_TH_LD: // lidar threshold
+			if (enter_cfg) { config_val = m_ld_thres; enter_cfg = false; }
+      		if (enter) { enter = false;
+				lcd_print_cfghd(config_sel, "LD Threshold");
+				lcd.setCursor(0,1); lcd.print(config_val);
+			} break;			
 			
 		case CFG_SAVE: // write config to eeprom
 			if (enter) { enter = false;

@@ -1,7 +1,8 @@
 // alert.cpp, implementation of the alert submodule
 // for ELEN30013 Semester 2, 2026
-// C. Mong 1606303 (cheukton.mong@student.unimelb.edu.au)
+// C. Mong (cheukton.mong@student.unimelb.edu.au)
 
+// 261016 - implement alert mute setting
 // 260912 - write the alert module code
 
 #include <Arduino.h>
@@ -25,6 +26,9 @@
 #define ALERT_BZZ_ERR_A 1000 
 #define ALERT_BZZ_ERR_B 500 
 
+// public vars
+char m_bzz_mode;
+
 // private vars
 int alert_state;
 int alert_timeout;
@@ -33,6 +37,7 @@ int alert_bzz_state;
 unsigned long alert_cnt;
 unsigned long alert_cnt_led;
 unsigned long alert_cnt_bzz;
+bool bzz_en; bool led_en;
 
 // implementation
 
@@ -48,11 +53,14 @@ int alert_setup() {
 	alert_cnt_led = 0;
 	alert_cnt_bzz = 0;
 	noTone(PIN_BZZ_BZZ);
+	m_bzz_mode = 0;
+	bzz_en = true; led_en = true;
 	return 0;
 }
 
 // begin an alert
 void alert_start(int severity, int timeout) {
+	int old_state = alert_state;
 	if (severity < alert_state) return; // keep higher priority alert on
 	alert_cnt = millis(); // reset the counter
 	switch (severity) {
@@ -90,10 +98,11 @@ void alert_start(int severity, int timeout) {
 			
 		default: alert_stop();
 	} 
-	if (alert_state){ // start counters
-		alert_cnt_led = alert_cnt;
-		alert_cnt_bzz = alert_cnt;
-		alert_timeout = timeout ? millis()+timeout*1000 : 0;
+	if (alert_state) { // update internal state
+		if (!old_state) { // start counters
+			alert_cnt_led = alert_cnt;
+			alert_cnt_bzz = alert_cnt;
+		} alert_timeout = timeout ? millis()+timeout*1000 : 0;
 	} return;
 }
 
@@ -116,15 +125,21 @@ void alert_loop() {
 		return;
 	}
 	
+	switch (m_bzz_mode) {
+		case 0: bzz_en = true; led_en = true; break;
+		case 1: bzz_en = false; led_en = true; break;
+		case 2: bzz_en = false; led_en = false; break;
+	} // buzzer and led mute mode
+	
 	switch (alert_state) {
-		case ALERT_URGENT:
+		case ALERT_URGENT: // user is not allowed to mute urgent LED alert
 			if (now - alert_cnt_led > ALERT_INT_LED_URGENT) {
 				// update LED - urgent
 				alert_led_state = alert_led_state ? false : true;
 				digitalWrite(PIN_BZZ_LED, alert_led_state);
 				alert_cnt_led = now;
 			}
-			if (now - alert_cnt_bzz > ALERT_INT_BZZ_URGENT) {
+			if (bzz_en && now - alert_cnt_bzz > ALERT_INT_BZZ_URGENT) {
 				// update buzzer - urgent
 				alert_bzz_state = alert_bzz_state ? false : true;
 				tone(PIN_BZZ_BZZ, alert_bzz_state ? ALERT_BZZ_URG_A : ALERT_BZZ_URG_B);
@@ -132,13 +147,13 @@ void alert_loop() {
 			} break;
 			
 		case ALERT_WARN:
-			if (now - alert_cnt_led > ALERT_INT_LED_WARN) {
+			if (led_en && now - alert_cnt_led > ALERT_INT_LED_WARN) {
 				// update LED - warning
 				alert_led_state = alert_led_state ? false : true;
 				digitalWrite(PIN_BZZ_LED, alert_led_state);
 				alert_cnt_led = now;
 			}
-			if (now - alert_cnt_bzz > ALERT_INT_BZZ_WARN) {
+			if (bzz_en && now - alert_cnt_bzz > ALERT_INT_BZZ_WARN) {
 				// update buzzer - warning
 				if (alert_bzz_state) { // triple bip
 					tone(PIN_BZZ_BZZ, 1000); delay(1);
@@ -153,7 +168,7 @@ void alert_loop() {
 			
 		case ALERT_INFO: 
 			// LED is OFF
-			if (now - alert_cnt_bzz > ALERT_INT_BZZ_INFO) {
+			if (bzz_en && now - alert_cnt_bzz > ALERT_INT_BZZ_INFO) {
 				// update buzzer - warning
 				if (alert_bzz_state) { // double bip
 					tone(PIN_BZZ_BZZ, 1000); delay(1);
@@ -167,7 +182,7 @@ void alert_loop() {
 			
 		case ALERT_ERROR:
 			// LED is solid on, no update
-			if (now - alert_cnt_bzz > ALERT_INT_BZZ_ERROR) {
+			if (bzz_en && now - alert_cnt_bzz > ALERT_INT_BZZ_ERROR) {
 				// update buzzer - error
 				switch (alert_bzz_state) {
 					case 0: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR_A); break;
