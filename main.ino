@@ -111,8 +111,6 @@ void setup() {
 		} else eeprom_ok = !load_eeprom(64+3);
 	}
 	
-	motion_config();
-	
 #ifdef DEBUG
 	if (eeprom_ok) {
 		Serial.print("m_sv_enable:"); Serial.print(m_sv_enable ? 'o':'x'); Serial.print(' ');
@@ -125,12 +123,19 @@ void setup() {
 		Serial.println("read  OK. now begin loop() ...\n");
 	} else Serial.println("read  NG. now begin loop() ...\n");
 	
+	// 261015 temp debug
+	m_sv_enable = 1;
+	m_sv_lefts = 0;
+	m_sv_rights = 180;
+	m_sv_steps = 180;
+	distance_config();
+	
 	while (Serial.available()) {
 		char x = Serial.read();
-	} Serial.println("\n press enter to continue");
+	} // Serial.println("\n press enter to continue");
 	
-	while (!Serial.available()) delay(1);
-	while (Serial.available()) char x = Serial.read();
+	//while (!Serial.available()) delay(1);
+	//while (Serial.available()) char x = Serial.read();
 	Serial.println("OK.");
 #endif
 }
