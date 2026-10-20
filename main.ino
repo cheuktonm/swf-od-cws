@@ -98,17 +98,18 @@ void setup() {
 	
 	Serial.println("setup OK. now read EEPROM  ...");	
 #else // non debug behaviour
+	int ok = true;
 	int e = 0;
-	if (control_setup()) 	ok = min(e, 1);
-	if (alert_setup()) 		ok = min(e, 2);
-	if (motion_setup())		ok = min(e, 3);
-	if (distance_setup())	ok = min(e, 4);
+	if (control_setup()) 	{ ok = false; e = 1; }
+	if (alert_setup()) 		{ ok = false; e = 2; }
+	if (motion_setup())		{ ok = false; e = 3; }
+	if (distance_setup())	{ ok = false; e = 4; }
 
 #define HANGUP // disable in prod
 #ifdef HANGUP 
 	if (!ok) {
 		char x[3]; x[0] = 0x00; x[1] = 0x00; x[2] = 0x00;
-		control_errmsg(F("Device error."), itoa(e, &x[0], 10));
+		control_errmsg("Device error.", itoa(e, &x[0], 10));
 		alert_start(ALERT_ERROR);
 		delay(3600000); // hang up the device
 	}

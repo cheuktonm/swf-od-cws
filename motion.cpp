@@ -37,16 +37,18 @@ int motion_setup() {
 	// assumed i2c is alr setup at this point
 	
 	//configure MPU6050
+	Wire.setWireTimeout(500000, false);
 	Wire.beginTransmission(MPU6050); // sends this to MPU6050 address
   	Wire.write(0x6B);   // PWR_MGMT_1 register
   	Wire.write(0x00);   // Wake the sensor up (it starts in sleep mode by default)
-  	Wire.endTransmission();
   	delay(10); // give time to boot up device
 	
 	Wire.beginTransmission(MPU6050);
 	Wire.write(0x1C);   // ACCEL_CONFIG register (adjusts range of measureable acceleration (default is 2))
 	Wire.write(0x10);   // sets the range to 16 which gives the range ±8g 
-	Wire.endTransmission();
+	
+	int error = Wire.endTransmission();
+	if (error != 0) return 1;
 
 	// setup tilt sensor
 	pinMode(PIN_TILT, INPUT);

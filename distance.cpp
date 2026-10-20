@@ -22,7 +22,7 @@
 #define US_THRES_UR 300
 #define LD_THRES_UR 100 //In long mode, VL53L1X can measure up to 360cm
 
-#define LD_TIMEOUT 500 //500ms
+#define LD_TIMEOUT 500000 //500ms in us
 #define LD_BUDGET 50000 //50,000us = 50ms
 #define LD_PERIOD 50 //50ms
 
@@ -47,6 +47,8 @@ int sense_step, now_step;
 int servo_timer;
 bool lidar_ok;
 
+int us_timer, ld_timer;
+
 int distance_setup() {
 	// assumed i2c is alr setup at this point
 
@@ -56,7 +58,7 @@ int distance_setup() {
 	if(!lidar.init()){
 		Serial.println("Lidar failed init");
 		lidar_ok = false;
-		//return -1;
+		// return -1;
 	} else lidar_ok = true;
 	lidar.setDistanceMode(VL53L1X::Long); //DistanceMode: Short/Medium/Long. If the mode is set to longer distances, it measures longer distnaces better, but reading becomes more innacurate with ambient light
   	lidar.setMeasurementTimingBudget(LD_BUDGET);//does all the measurements in 50ms
@@ -80,10 +82,11 @@ int distance_setup() {
 	now_step = 0;
 	
 	m_us_last = 0; m_ld_last = 0;
+	us_timer = 0; ld_timer = 0;
 	
 	m_us_cm = 0; m_ld_cm = 0;
 	
-	return 0; // all good
+	return !lidar_ok; // all good
 }
 
 int distance_config() {
@@ -108,22 +111,29 @@ int distance_config() {
 }
 
 void distance_loop() {
+	int now = millis();
 	// grab ultrasonic measurement
-	m_us_last = m_us_cm;
-	digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
-	delayMicroseconds(10);
-	digitalWrite(PIN_US_TRIG, LOW);
-	m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
+	if (now - us_timer > 1500) {
+		us_timer = now;
+		m_us_last = m_us_cm;
+		digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
+		delayMicroseconds(10);
+		digitalWrite(PIN_US_TRIG, LOW);
+		m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
+	}	
 	
 	// grab lidar measurement
-	if (lidar_ok) {
+	if (now - ld_timer > 500) {
+		ld_timer = now;
+		if (lidar_ok) {
 		m_ld_last = m_ld_cm;
 		m_ld_cm = lidar.read()/10;
 		int ld_status = lidar.ranging_data.range_status;
 		bool m_ld_reliable = !lidar.timeoutOccurred() && (ld_status == VL53L1X::RangeValid || ld_status == VL53L1X::RangeValidMinRangeClipped);
 	
 		if(!m_ld_reliable) m_ld_cm = 0; // a value of 0 signals invalid reading.
-	} else m_ld_cm = 0;
+		} else m_ld_cm = 0;
+	}
 	
 	// Might improve accuracy??
 	// if (m_ld_cm && m_us_cm)
@@ -142,7 +152,6 @@ void distance_loop() {
 	//	  alert_start(ALERT_URGENT, 10);
 	
 	// rotate platform
-	int now = millis();
 	if (m_sv_enable) {
 		if (now-servo_timer > 500) {
 			//Serial.print(m_sv_lefts);Serial.print(' ');

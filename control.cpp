@@ -70,7 +70,7 @@ int control_setup() {
 	lcd.setCursor(0,1);
 	lcd.print(F("Starting..."));
 	
-	lcd.setCursor(14,0); lcd.write('V');
+	lcd.setCursor(14,0); lcd.write('v');
 	lcd.setCursor(15,0); lcd.write(VERSION_MAJOR);
 	lcd.setCursor(15,1); lcd.write(VERSION_MINOR);
 	
