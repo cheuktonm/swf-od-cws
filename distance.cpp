@@ -19,7 +19,7 @@
 #define ULTRASONIC_CONV 58
 
 // urgent alert thresholds are not user configurable
-#define US_THRES_UR 300
+#define US_THRES_UR 100
 #define LD_THRES_UR 100 //In long mode, VL53L1X can measure up to 360cm
 
 #define LD_TIMEOUT 500000 //500ms in us
@@ -113,18 +113,19 @@ int distance_config() {
 void distance_loop() {
 	int now = millis();
 	// grab ultrasonic measurement
-	if (now - us_timer > 1500) {
+	if (now - us_timer > 80) { // recommended >60ms timing cycle
 		us_timer = now;
 		m_us_last = m_us_cm;
 		digitalWrite(PIN_US_TRIG, HIGH); // send a pulse
 		delayMicroseconds(10);
 		digitalWrite(PIN_US_TRIG, LOW);
 		m_us_cm = pulseIn(PIN_US_ECHO, HIGH)/ULTRASONIC_CONV;
+		if (m_us_cm > 800) m_us_cm = 0; // don't trust ultrasonic if past """8m"""
 	}	
 	
 	// grab lidar measurement
-	if (now - ld_timer > 500) {
-		ld_timer = now;
+	//if (now - ld_timer > 500) {
+		//ld_timer = now;
 		if (lidar_ok) {
 		m_ld_last = m_ld_cm;
 		m_ld_cm = lidar.read()/10;
@@ -133,7 +134,7 @@ void distance_loop() {
 	
 		if(!m_ld_reliable) m_ld_cm = 0; // a value of 0 signals invalid reading.
 		} else m_ld_cm = 0;
-	}
+	//}
 	
 	// Might improve accuracy??
 	// if (m_ld_cm && m_us_cm)
@@ -142,14 +143,14 @@ void distance_loop() {
 	
 	// if the distance is below the *warning* threshold
 	// raise the alarm
-	if (m_us_cm && m_us_cm < m_us_thres && m_us_last < m_us_thres) 
-		alert_start(ALERT_URGENT, 10);
+	//if (m_us_cm && m_us_cm < m_us_thres && m_us_last && m_us_last < m_us_thres) 
+	//	alert_start(ALERT_URGENT, 10);
 	
 	// if the distance is below the *urgent* threshold
-	if (m_us_cm && m_us_cm < US_THRES_UR && m_us_last < US_THRES_UR) 
-		alert_start(ALERT_URGENT, 10);
-	// if (m_ld_cm && m_ld_cm < LD_THRES_UR && m_ld_last < LD_THRES_UR) 
-	//	  alert_start(ALERT_URGENT, 10);
+	if (m_us_cm && m_us_cm < US_THRES_UR && m_us_last && m_us_last < US_THRES_UR) 
+		alert_start(ALERT_URGENT, 5);
+	if (m_ld_cm && m_ld_cm < LD_THRES_UR && m_ld_last && m_ld_last < LD_THRES_UR) 
+		  alert_start(ALERT_URGENT, 10);
 	
 	// rotate platform
 	if (m_sv_enable) {

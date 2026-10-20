@@ -8,15 +8,17 @@
 // 260915 - write the motion module
 
 #include <Arduino.h>
-#include <Wire.h>
+//#include <Wire.h>
+#include "MPU6050.h"
 #include "motion.h"
 #include "alert.h"
 
 // pin defines in motion.h
 
 #define THRES_TILT_BITS 12 // require x/16 bits set to trigger
-#define ACC_THRES 2 // in g
-#define GYRO_THRES 180 // in degrees/sec
+#define ACC_THRES 8 // in g
+#define GYRO_THRES_U 400 // in degrees/sec
+#define GYRO_THRES_W 250// in degrees/sec
 
 // public bars
 bool m_is_tilted;
@@ -26,9 +28,10 @@ char c_tilt_neg;
 int m_mtn_angle;
 
 // private vars
-int MPU6050 = 0x68; // MPU-6050 I2C address
-float X_a, Y_a, Z_a; // Accelerometer outputs (in g)
-float GX, GY, GZ; // Gyroscope outputs (in deg/sec)
+MPU6050 mpu;
+//int MPU6050 = 0x68; // MPU-6050 I2C address
+int X_a, Y_a, Z_a; // Accelerometer outputs (in g)
+int GX, GY, GZ; // Gyroscope outputs (in deg/sec)
 bool tilt_enable;
 int tilt_thres, tilt_trig, tilt_cnt;
 int tilt; // array of 16 bits
@@ -36,19 +39,27 @@ int tilt; // array of 16 bits
 int motion_setup() {
 	// assumed i2c is alr setup at this point
 	
+	mpu.initialize();
+	if (mpu.testConnection() == false) return -1;
+	
 	//configure MPU6050
-	Wire.setWireTimeout(500000, false);
-	Wire.beginTransmission(MPU6050); // sends this to MPU6050 address
-  	Wire.write(0x6B);   // PWR_MGMT_1 register
-  	Wire.write(0x00);   // Wake the sensor up (it starts in sleep mode by default)
-  	delay(10); // give time to boot up device
+	//Wire.setWireTimeout(500000, false);
+	//Wire.beginTransmission(MPU6050); // sends this to MPU6050 address
+  	//Wire.write(0x6B);   // PWR_MGMT_1 register
+  	//Wire.write(0x00);   // Wake the sensor up (it starts in sleep mode by default)
+  	//delay(10); // give time to boot up device
 	
-	Wire.beginTransmission(MPU6050);
-	Wire.write(0x1C);   // ACCEL_CONFIG register (adjusts range of measureable acceleration (default is 2))
-	Wire.write(0x10);   // sets the range to 16 which gives the range ±8g 
+	//Wire.beginTransmission(MPU6050);
+	//Wire.write(0x1C);   // ACCEL_CONFIG register (adjusts range of measureable acceleration (default is 2))
+	//Wire.write(0x10);   // sets the range to 16 which gives the range ±8g 
 	
-	int error = Wire.endTransmission();
-	if (error != 0) return 1;
+	//int error = Wire.endTransmission();
+	//if (error != 0) return 1;
+	
+	//Wire.beginTransmission(MPU6050);
+  	//Wire.write(0x3B); // Starts at ACCEL_XOUT_H
+  	//Wire.endTransmission(false);
+  	//Wire.requestFrom(MPU6050, 6, true);
 
 	// setup tilt sensor
 	pinMode(PIN_TILT, INPUT);
@@ -121,28 +132,32 @@ void motion_loop() {
 	}
 	
 	// read accelerometer, determine abnormal state 
-	Wire.beginTransmission(MPU6050);
-  	Wire.write(0x3B); // Starts at ACCEL_XOUT_H
-  	Wire.endTransmission(false);
-  	Wire.requestFrom(MPU6050, 6, true);
+	//Wire.beginTransmission(MPU6050);
+  	//Wire.write(0x3B); // Starts at ACCEL_XOUT_H
+  	//Wire.endTransmission(false);
+  	//Wire.requestFrom(MPU6050, 6, true);
+	
+	int x = 0;
+	mpu.getMotion6(&x, &x, &x, &GX, &GY, &GZ);
+	mpu.getAcceleration(&X_a, &Y_a, &Z_a);
 
-	X_a = (Wire.read() << 8 | Wire.read());
-  	Y_a = (Wire.read() << 8 | Wire.read());
-  	Z_a = (Wire.read() << 8 | Wire.read());
+	//X_a = (Wire.read() << 8 | Wire.read());
+  	//Y_a = (Wire.read() << 8 | Wire.read());
+  	//Z_a = (Wire.read() << 8 | Wire.read());
 
 	// Convert to g (range is +/-8g -> 4096.0 per g)
 	X_a = X_a / 4096.0;
   	Y_a = Y_a / 4096.0;
   	Z_a = Z_a / 4096.0;
 
-	Wire.beginTransmission(MPU6050);
-  	Wire.write(0x43); // Start at GYRO_XOUT_H
-  	Wire.endTransmission(false);
-  	Wire.requestFrom(MPU6050, 6, true);
+	//Wire.beginTransmission(MPU6050);
+  	//Wire.write(0x43); // Start at GYRO_XOUT_H
+  	//Wire.endTransmission(false);
+  	//Wire.requestFrom(MPU6050, 6, true);
 
-  	GX = (Wire.read() << 8 | Wire.read());
-  	GY = (Wire.read() << 8 | Wire.read());
-  	GZ = (Wire.read() << 8 | Wire.read());
+  	//GX = (Wire.read() << 8 | Wire.read());
+  	//GY = (Wire.read() << 8 | Wire.read());
+  	//GZ = (Wire.read() << 8 | Wire.read());
 
   	// Convert to deg/sec (default range is +/-250 deg/s -> 131 LSB per deg/s)
   	GX = GX / 131.0;
@@ -150,14 +165,18 @@ void motion_loop() {
   	GZ = GZ / 131.0;
 	
 	float acc_mag = sqrt(X_a*X_a + Y_a*Y_a + Z_a*Z_a); // magnitude of acceleration
-	if(acc_mag> ACC_THRES) m_mtn_abnormal = true;
-
 	float gyro_mag = sqrt(GX*GX + GY*GY + GZ*GZ); // magnitude of gyro
-	if(gyro_mag > GYRO_THRES) m_mtn_abnormal = true;
+	
+	m_mtn_abnormal = m_mtn_abnormal ? true : (acc_mag > ACC_THRES || gyro_mag > GYRO_THRES_W);
 	
 	// TODO: abnormal motion alarm activation should have thresholds
-	//if (m_mtn_abnormal) 
-	//	alert_start(ALERT_URGENT, 5);
+	if (gyro_mag > GYRO_THRES_U) {
+		alert_start(ALERT_WARN, 10);
+	} else if (gyro_mag > GYRO_THRES_W) {
+		alert_start(ALERT_INFO, 5);
+	}
+	
+	if (acc_mag > ACC_THRES) alert_start(ALERT_WARN, 5);
 	
 	// Serial.print(acc_mag); Serial.print(' '); Serial.print(gyro_mag); Serial.println(' ');
 

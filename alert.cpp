@@ -10,10 +10,10 @@
 
 // pin defines in alert.h
 
-#define ALERT_INT_LED_URGENT 10 
-#define ALERT_INT_BZZ_URGENT 10
-// urgent buzzer - alternate 1000/500 hz 
-#define ALERT_BZZ_URG_A 1000 
+#define ALERT_INT_LED_URGENT 50 
+#define ALERT_INT_BZZ_URGENT 200
+// urgent buzzer - alternate 1500/500 hz 
+#define ALERT_BZZ_URG_A 1500 
 #define ALERT_BZZ_URG_B 500 
 
 #define ALERT_INT_LED_WARN   50
@@ -21,17 +21,16 @@
 
 #define ALERT_INT_BZZ_INFO   50
 
-#define ALERT_INT_BZZ_ERROR  100
-// error buzzer - alternate 1000/500 hz 
-#define ALERT_BZZ_ERR_A 1000 
-#define ALERT_BZZ_ERR_B 500 
+// error buzzer - beep for 125ms on rest off 
+#define ALERT_INT_BZZ_ERROR  500
+#define ALERT_BZZ_ERR 1000
 
 // public vars
 char m_bzz_mode;
 
 // private vars
 int alert_state;
-int alert_timeout;
+unsigned long alert_timeout;
 int alert_led_state;
 int alert_bzz_state;
 unsigned long alert_cnt;
@@ -98,12 +97,15 @@ void alert_start(int severity, int timeout) {
 			
 		default: alert_stop();
 	} 
+	unsigned long now = millis();
 	if (alert_state) { // update internal state
 		if (!old_state) { // start counters
 			alert_cnt_led = alert_cnt;
 			alert_cnt_bzz = alert_cnt;
-		} alert_timeout = timeout ? millis()+timeout*1000 : 0;
-	} return;
+		} alert_timeout = timeout ? (now+timeout*1000) : 0;
+	} 
+	// Serial.print(now); Serial.print(' ');Serial.print(alert_state); Serial.print(' '); Serial.println(alert_timeout); 
+	return;
 }
 
 // stop any alerts
@@ -185,11 +187,10 @@ void alert_loop() {
 			if (bzz_en && now - alert_cnt_bzz > ALERT_INT_BZZ_ERROR) {
 				// update buzzer - error
 				switch (alert_bzz_state) {
-					case 0: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR_A); break;
-					case 1: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR_B); break;
-					case 2: noTone(PIN_BZZ_BZZ); break;
+					case 0: tone(PIN_BZZ_BZZ, ALERT_BZZ_ERR); break;
+					case 1: noTone(PIN_BZZ_BZZ); break;
 					default: break;
-				} alert_bzz_state = (alert_bzz_state == 2) ? 0 : alert_bzz_state++;
+				} alert_bzz_state = (alert_bzz_state >= 7) ? 0 : alert_bzz_state+1;
 				alert_cnt_bzz = now;
 			} break;
 			
