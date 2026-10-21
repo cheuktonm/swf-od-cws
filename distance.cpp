@@ -143,14 +143,16 @@ void distance_loop() {
 	
 	// if the distance is below the *warning* threshold
 	// raise the alarm
-	//if (m_us_cm && m_us_cm < m_us_thres && m_us_last && m_us_last < m_us_thres) 
-	//	alert_start(ALERT_URGENT, 10);
+	if (m_us_cm && m_us_cm < m_us_thres && m_us_last && m_us_last < m_us_thres) 
+		alert_start(ALERT_WARN, 5);
+	if (m_ld_cm && m_ld_cm < m_ld_thres && m_ld_last && m_ld_last < m_ld_thres) 
+		alert_start(ALERT_WARN, 5);
 	
 	// if the distance is below the *urgent* threshold
 	if (m_us_cm && m_us_cm < US_THRES_UR && m_us_last && m_us_last < US_THRES_UR) 
 		alert_start(ALERT_URGENT, 5);
 	if (m_ld_cm && m_ld_cm < LD_THRES_UR && m_ld_last && m_ld_last < LD_THRES_UR) 
-		  alert_start(ALERT_URGENT, 10);
+		alert_start(ALERT_URGENT, 5);
 	
 	// rotate platform
 	if (m_sv_enable) {
